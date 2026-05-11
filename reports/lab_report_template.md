@@ -2,9 +2,10 @@
 
 ## 1. Team / student
 
-- Name:
-- Repo/commit:
-- Date:
+- Name: Phạm Thanh Tùng
+- Student ID: 2A202600268
+- Repo/commit:https://github.com/self-creation98/phase2-track3-day8-langgraph-agent.git
+- Date: 2026-05-11
 
 ## 2. Architecture
 

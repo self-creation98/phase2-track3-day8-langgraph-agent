@@ -1,12 +1,16 @@
 """Graph construction.
 
-This module is intentionally import-safe. It imports LangGraph only inside the builder so unit tests
-that check schema/metrics can run even if students are still debugging graph wiring.
+This module is intentionally import-safe. It imports LangGraph only inside the builder so unit
+tests that check schema/metrics can run even if students are still debugging graph wiring.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
 
 from .nodes import (
     answer_node,
@@ -21,26 +25,35 @@ from .nodes import (
     risky_action_node,
     tool_node,
 )
-from .routing import route_after_approval, route_after_classify, route_after_evaluate, route_after_retry
+from .routing import (
+    route_after_approval,
+    route_after_classify,
+    route_after_evaluate,
+    route_after_retry,
+)
 from .state import AgentState
 
 
-def build_graph(checkpointer: Any | None = None):
+def build_graph(
+    checkpointer: Any | None = None,  # noqa: ANN401
+) -> CompiledStateGraph:  # type: ignore[name-defined]
     """Build and compile the LangGraph workflow.
 
-    TODO(student): review the architecture and modify nodes/edges only with a clear reason.
-    Required behaviors:
-    - intake -> classify (normalization + routing)
-    - classify routes to answer/tool/clarify/risky/retry
-    - tool -> evaluate creates the retry loop (slide: "done?" check)
-    - risky path requires approval before tool/action
-    - retry loop bounded by max_attempts -> dead_letter on exhaustion
-    - all paths eventually reach finalize -> END
+    Architecture:
+        START → intake → classify → [conditional routing]
+          simple       → answer → finalize → END
+          tool         → tool → evaluate → answer → finalize → END
+          missing_info → clarify → finalize → END
+          risky        → risky_action → approval → tool → evaluate → answer → finalize → END
+          error        → retry → tool → evaluate → [retry loop or answer]
+          max retry    → dead_letter → finalize → END
     """
     try:
         from langgraph.graph import END, START, StateGraph
-    except Exception as exc:  # pragma: no cover - helpful install error
-        raise RuntimeError("LangGraph is required. Run: pip install -e '.[dev]' or pip install langgraph") from exc
+    except Exception as exc:  # pragma: no cover
+        raise RuntimeError(
+            "LangGraph is required. Run: pip install -e '.[dev]' or pip install langgraph",
+        ) from exc
 
     graph = StateGraph(AgentState)
     graph.add_node("intake", intake_node)
@@ -69,3 +82,17 @@ def build_graph(checkpointer: Any | None = None):
     graph.add_edge("finalize", END)
 
     return graph.compile(checkpointer=checkpointer)
+
+
+def export_mermaid_diagram(output_path: str = "outputs/graph.md") -> str:
+    """Export the graph as a Mermaid diagram (bonus extension).
+
+    Returns:
+        The Mermaid diagram string.
+    """
+    compiled = build_graph()
+    mermaid = compiled.get_graph().draw_mermaid()
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"```mermaid\n{mermaid}\n```\n", encoding="utf-8")
+    return mermaid

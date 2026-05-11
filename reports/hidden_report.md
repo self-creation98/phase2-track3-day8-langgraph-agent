@@ -1,31 +1,12 @@
-"""Report generation helper."""
-
-from __future__ import annotations
-
-from pathlib import Path
-
-from .metrics import MetricsReport, ScenarioMetric
-
-
-def _render_scenario_row(m: ScenarioMetric) -> str:
-    """Render one scenario as a markdown table row."""
-    success_icon = "✅" if m.success else "❌"
-    return (
-        f"| {m.scenario_id} | {m.expected_route} | {m.actual_route or 'N/A'} "
-        f"| {success_icon} | {m.retry_count} | {m.interrupt_count} |"
-    )
-
-
-def render_report(metrics: MetricsReport) -> str:
-    """Generate a complete lab report from metrics data."""
-    scenario_rows = "\n".join(_render_scenario_row(m) for m in metrics.scenario_metrics)
-
-    return f"""# Day 08 Lab Report
+# Day 08 Lab Report
 
 ## 1. Team / student
 
-- Name: Student
+- Name: Phạm Thanh Tùng
+- Student ID: 2A202600268
+- Repo/Commit: https://github.com/self-creation98/phase2-track3-day8-langgraph-agent.git
 - Date: 2026-05-11
+
 
 ## 2. Architecture
 
@@ -66,14 +47,28 @@ START → intake → classify → [conditional routing]
 
 | Scenario | Expected route | Actual route | Success | Retries | Interrupts |
 |---|---|---|---:|---:|---:|
-{scenario_rows}
+| G01_simple | simple | simple | ✅ | 0 | 0 |
+| G02_simple2 | simple | simple | ✅ | 0 | 0 |
+| G03_tool | tool | tool | ✅ | 0 | 0 |
+| G04_tool2 | tool | tool | ✅ | 0 | 0 |
+| G05_tool3 | tool | tool | ✅ | 0 | 0 |
+| G06_missing | missing_info | missing_info | ✅ | 0 | 0 |
+| G07_missing2 | missing_info | missing_info | ✅ | 0 | 0 |
+| G08_risky | risky | risky | ✅ | 0 | 1 |
+| G09_risky2 | risky | risky | ✅ | 0 | 1 |
+| G10_risky3 | risky | risky | ✅ | 0 | 1 |
+| G11_risky4 | risky | risky | ✅ | 0 | 1 |
+| G12_error | error | error | ✅ | 2 | 0 |
+| G13_error2 | error | error | ✅ | 2 | 0 |
+| G14_dead | error | error | ✅ | 1 | 0 |
+| G15_mixed | risky | risky | ✅ | 0 | 1 |
 
 **Summary:**
-- Total scenarios: {metrics.total_scenarios}
-- Success rate: {metrics.success_rate:.2%}
-- Average nodes visited: {metrics.avg_nodes_visited:.2f}
-- Total retries: {metrics.total_retries}
-- Total interrupts: {metrics.total_interrupts}
+- Total scenarios: 15
+- Success rate: 100.00%
+- Average nodes visited: 6.60
+- Total retries: 5
+- Total interrupts: 5
 
 ## 5. Failure analysis
 
@@ -93,7 +88,7 @@ heuristics and routed to `clarify` instead of hallucinating an answer.
 ## 6. Persistence / recovery evidence
 
 - **MemorySaver**: Used by default for development and CI. Each scenario run uses a unique
-  `thread_id` (format: `thread-{{scenario_id}}`), enabling state isolation between runs.
+  `thread_id` (format: `thread-{scenario_id}`), enabling state isolation between runs.
 - **SqliteSaver**: Configured with `SqliteSaver(conn=sqlite3.connect(...))` and WAL mode for
   concurrent read access. State can survive process restarts.
 - **Thread ID per run**: `cli.py` passes `thread_id` via `run_config["configurable"]` to enable
@@ -115,11 +110,3 @@ If given one more day, I would prioritize:
    processing) with proper error handling and circuit breakers.
 3. **Observability**: Add LangSmith tracing for production monitoring and debugging.
 4. **Parallel fan-out**: Use `Send()` to run multiple tools concurrently for complex queries.
-"""
-
-
-def write_report(metrics: MetricsReport, output_path: str | Path) -> None:
-    """Write the lab report to disk."""
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_report(metrics), encoding="utf-8")
